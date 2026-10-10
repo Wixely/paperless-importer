@@ -3,6 +3,8 @@ services:
     build:
       context: .
     restart: unless-stopped
+    # Startup exits non-zero before scanning unless the token has
+    # documents.add_document and documents.view_paperlesstask.
     environment:
       Paperless__BaseUrl: "${PAPERLESS_URL:?set PAPERLESS_URL}"
       Paperless__TokenFile: /run/secrets/paperless_token

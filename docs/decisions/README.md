@@ -8,3 +8,5 @@ Accepted decisions:
 
 - [2026-10-09: Stateless task reconciliation](2026-10-09-stateless-task-reconciliation.md)
 - [2026-10-10: Directory mappings and NFS recovery](2026-10-10-directory-mappings-and-nfs-recovery.md)
+- [2026-10-10: Configurable success disposition](2026-10-10-success-disposition.md)
+- [2026-10-10: Mandatory startup permission gate](2026-10-10-startup-permission-gate.md)

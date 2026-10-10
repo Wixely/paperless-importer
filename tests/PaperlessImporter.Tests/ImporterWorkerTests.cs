@@ -225,6 +225,9 @@ public sealed class ImporterWorkerTests : IDisposable
     {
         public int UploadCount { get; private set; }
 
+        public Task VerifyStartupPrerequisitesAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
         public Task<IReadOnlyList<PaperlessTaskResult>> GetTasksAsync(CancellationToken cancellationToken) =>
             Task.FromResult(tasks);
 

@@ -5,6 +5,119 @@ namespace PaperlessImporter.Tests;
 public sealed class PaperlessClientTests
 {
     [Fact]
+    public void AcceptsRequiredLeastPrivilegePermissions()
+    {
+        using var json = JsonDocument.Parse("""
+            {
+              "permissions": [
+                "documents.add_document",
+                "documents.view_paperlesstask"
+              ],
+              "is_superuser": false
+            }
+            """);
+
+        Assert.Empty(PaperlessClient.FindMissingPermissions(json.RootElement));
+    }
+
+    [Fact]
+    public void ReportsEveryMissingStartupPermission()
+    {
+        using var json = JsonDocument.Parse("""
+            {"permissions": [], "is_superuser": false}
+            """);
+
+        var missing = PaperlessClient.FindMissingPermissions(json.RootElement);
+
+        Assert.Equal(
+            ["documents.add_document", "documents.view_paperlesstask"],
+            missing);
+    }
+
+    [Fact]
+    public async Task StartupPreflightAlsoProbesTaskEndpoint()
+    {
+        var handler = new QueueHandler(
+            JsonResponse("""
+                {
+                  "permissions": [
+                    "documents.add_document",
+                    "documents.view_paperlesstask"
+                  ],
+                  "is_superuser": false
+                }
+                """),
+            JsonResponse("{\"results\": []}"));
+        using var http = new HttpClient(handler);
+        var client = new PaperlessClient(
+            http,
+            Microsoft.Extensions.Options.Options.Create(new PaperlessOptions
+            {
+                BaseUrl = new Uri("https://paperless.example.invalid/"),
+                Token = "synthetic-token"
+            }));
+
+        await client.VerifyStartupPrerequisitesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(["/api/profile/", "/api/tasks/?page_size=1"], handler.RequestTargets);
+    }
+
+    [Fact]
+    public async Task StartupPreflightFailsBeforeTaskProbeWhenPermissionIsMissing()
+    {
+        var handler = new QueueHandler(JsonResponse("""
+            {
+              "permissions": ["documents.add_document"],
+              "is_superuser": false
+            }
+            """));
+        using var http = new HttpClient(handler);
+        var client = new PaperlessClient(
+            http,
+            Microsoft.Extensions.Options.Options.Create(new PaperlessOptions
+            {
+                BaseUrl = new Uri("https://paperless.example.invalid/"),
+                Token = "synthetic-token"
+            }));
+
+        var exception = await Assert.ThrowsAsync<PaperlessStartupException>(() =>
+            client.VerifyStartupPrerequisitesAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("documents.view_paperlesstask", exception.Message, StringComparison.Ordinal);
+        Assert.Single(handler.RequestTargets);
+    }
+
+    [Fact]
+    public async Task StartupPreflightFailsWhenEffectiveTaskAccessIsRejected()
+    {
+        var handler = new QueueHandler(
+            JsonResponse("""
+                {
+                  "permissions": [
+                    "documents.add_document",
+                    "documents.view_paperlesstask"
+                  ],
+                  "is_superuser": false
+                }
+                """),
+            new HttpResponseMessage(System.Net.HttpStatusCode.Forbidden));
+        using var http = new HttpClient(handler);
+        var client = new PaperlessClient(
+            http,
+            Microsoft.Extensions.Options.Options.Create(new PaperlessOptions
+            {
+                BaseUrl = new Uri("https://paperless.example.invalid/"),
+                Token = "synthetic-token"
+            }));
+
+        var exception = await Assert.ThrowsAsync<PaperlessStartupException>(() =>
+            client.VerifyStartupPrerequisitesAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("HTTP 403", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(2, handler.RequestTargets.Count);
+    }
+
+    [Fact]
     public void ParsesArrayTaskResponse()
     {
         using var json = JsonDocument.Parse("""
@@ -39,5 +152,25 @@ public sealed class PaperlessClientTests
 
         Assert.Equal(PaperlessTaskState.Failure, task.State);
         Assert.Equal("paperless-task-failed", task.ErrorCode);
+    }
+
+    private static HttpResponseMessage JsonResponse(string json) =>
+        new(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+        };
+
+    private sealed class QueueHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
+    {
+        private readonly Queue<HttpResponseMessage> _responses = new(responses);
+        public List<string> RequestTargets { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestTargets.Add(request.RequestUri?.PathAndQuery ?? string.Empty);
+            return Task.FromResult(_responses.Dequeue());
+        }
     }
 }

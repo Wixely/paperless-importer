@@ -2,7 +2,7 @@
 
 Paperless Importer is a small .NET 10 worker that moves completed printer scans from an NFS-backed inbox into Paperless-ngx through its supported HTTP API.
 
-- Status: MVP implemented; awaiting deployment credentials and synthetic environment acceptance
+- Status: MVP implemented; awaiting required Paperless account permissions and synthetic environment acceptance
 - Last reviewed: 2026-10-10
 - Intended host: private local GitLab; no remote has been created
 - License: private/closed source
@@ -28,6 +28,19 @@ Each location has its own filesystem error boundary. If one NFS-backed mapping d
 Duplicate avoidance depends on Paperless exposing task records with `task_file_name` and `date_created`. A matching task must be newer than the source file modification time, allowing the configured clock-skew margin. This avoids treating an old task for a reused filename as the current import.
 
 There is no exactly-once guarantee without durable idempotency state. A duplicate remains possible if Paperless prunes or hides the relevant task, sanitizes the filename differently, or accepts an upload that is not visible by the next poll after the client loses the response. Paperless's content duplicate detection remains useful defence in depth. Validate task retention and representative printer filenames before production cutover.
+
+## Required Paperless permissions
+
+The account represented by the API token must have both of these global permissions:
+
+| Paperless UI permission | Permission code | Why it is required |
+| --- | --- | --- |
+| **Document: Add** | `documents.add_document` | Submit documents through the supported upload API |
+| **PaperlessTask: View** | `documents.view_paperlesstask` | Check for prior uploads and wait for terminal task status |
+
+Use a dedicated regular account with only the permissions it needs; superuser access is unnecessary and discouraged.
+
+Every normal process start performs a mandatory preflight before any directory is scanned or file is claimed. It reads `/api/profile/`, verifies both permissions, and makes a one-item request to `/api/tasks/` to confirm the effective endpoint access. Missing permissions or a rejected profile/task request terminate the process with a non-zero exit code. An unavailable or invalid token also terminates startup. Docker therefore remains stopped or restarting instead of running an importer that cannot perform stateless reconciliation. Health-check command invocations do not repeat the remote preflight.
 
 ## Configuration
 
@@ -77,6 +90,8 @@ docker compose --env-file .env -f compose.example.yml up -d
 
 The image is a non-root, self-contained, single-file NativeAOT Linux executable. It exposes no network port. The example bind mount points to one filesystem containing `inbox`, `processing`, `output`, `quarantine`, and `health` directories. To add another mapping, add another bind mount and the four corresponding indexed environment settings. Mount ownership must permit the image's non-root user to rename and create files.
 
+On startup, check `docker compose ps` and the container log. A permission error names the missing permission code and exits with code 78; Paperless/token availability or response-contract failure exits with code 69. No input file is touched before this check succeeds.
+
 ## Health
 
 The worker writes a small transient health file containing timestamps, backlog count, and a dependency status code—never filenames or credentials. Separate commands return exit code 0 when healthy:
@@ -96,12 +111,12 @@ Liveness requires a recent worker heartbeat. Readiness additionally requires a r
 
 ## Current evidence
 
-Automated checks through 2026-10-10 cover readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 14 tests. NativeAOT and container execution remain unverified on this workstation because the Windows C++ linker and Docker are not installed.
+Automated checks through 2026-10-10 cover readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, startup permission enforcement and task-endpoint probing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 19 tests. NativeAOT and container execution remain unverified on this workstation because the Windows C++ linker and Docker are not installed.
 
 ## What remains
 
 - Obtain and mount a dedicated least-privilege Paperless token and trusted CA bundle if required; never retain the supplied login password in deployment configuration.
-- Confirm the Paperless service account can list tasks as well as upload.
+- Grant and verify `documents.add_document` and `documents.view_paperlesstask` for the Paperless service account.
 - Validate task retention, filename normalization, and queue visibility using synthetic PDF and image fixtures.
 - Validate atomic rename, open-file behaviour, outage recovery, and non-root permissions on each intended NFS mount.
 - Complete the exclusive cutover that prevents Paperless's native consumer racing this importer.

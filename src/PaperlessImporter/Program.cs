@@ -61,6 +61,23 @@ if (args.Contains("--health-live", StringComparer.OrdinalIgnoreCase) ||
     return HealthStatus.Check(importer.HealthPath, readiness, importer, DateTimeOffset.UtcNow) ? 0 : 1;
 }
 
+try
+{
+    await host.Services
+        .GetRequiredService<IPaperlessClient>()
+        .VerifyStartupPrerequisitesAsync(CancellationToken.None);
+}
+catch (PaperlessStartupException exception)
+{
+    Console.Error.WriteLine($"Startup preflight failed: {exception.Message}");
+    return 78;
+}
+catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException)
+{
+    Console.Error.WriteLine("Startup preflight failed: Paperless or its mounted token is unavailable or invalid.");
+    return 69;
+}
+
 await host.RunAsync();
 return 0;
 

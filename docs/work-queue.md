@@ -19,6 +19,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | Complete | Implement Paperless upload, task parsing, and terminal disposition | Implementation agent | Contract parsing and worker reconciliation tests passed on 2026-10-09 |
 | Complete | Support move, delete, and retained-claim success policies across separate mounts | Implementation agent | Automated disposition and deterministic collision tests passed on 2026-10-10; `docs/decisions/2026-10-10-success-disposition.md` |
 | Complete | Add redacted logs and separate liveness/readiness checks | Implementation agent | Automated health tests passed on 2026-10-09 |
+| Complete | Fail startup unless Paperless upload and reconciliation permissions are effective | Implementation agent | Profile permission and task-endpoint preflight tests passed on 2026-10-10; `docs/decisions/2026-10-10-startup-permission-gate.md` |
 | Complete | Add interactive, Windows Service, systemd, and Docker packaging assets | Implementation agent | Assets present; build/runtime verification tracked below |
 | Complete | Add configuration and operator documentation | Implementation agent | README documents environment, mounted secret, CA, operation, health, and limitations |
 
@@ -55,6 +56,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-10, automated: `dotnet test PaperlessImporter.slnx --no-build --no-restore --verbosity quiet` passed all 11 tests, including open-file deferral and unavailable-location isolation.
 - 2026-10-10, automated: `dotnet test PaperlessImporter.slnx --configuration Release` passed all 14 tests after adding configurable success dispositions and cross-mount terminal transfer.
 - 2026-10-10, development API: login-to-token exchange succeeded over trusted HTTPS and `/api/profile/` succeeded. The profile reports neither document-add nor PaperlessTask-view permission; a task-list request returned HTTP 403 without inspecting task data.
+- 2026-10-10, automated: `dotnet test PaperlessImporter.slnx --configuration Release` passed all 19 tests after adding the mandatory startup permission and task-endpoint preflight, including an effective-access HTTP 403 case.
 
 ## Recommended next action
 

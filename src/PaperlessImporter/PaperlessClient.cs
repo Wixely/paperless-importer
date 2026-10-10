@@ -6,13 +6,46 @@ namespace PaperlessImporter;
 
 public interface IPaperlessClient
 {
+    Task VerifyStartupPrerequisitesAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<PaperlessTaskResult>> GetTasksAsync(CancellationToken cancellationToken);
     Task<string> UploadAsync(string path, string fileName, CancellationToken cancellationToken);
 }
 
 public sealed class PaperlessClient(HttpClient httpClient, IOptions<PaperlessOptions> options) : IPaperlessClient
 {
+    internal const string AddDocumentPermission = "documents.add_document";
+    internal const string ViewTaskPermission = "documents.view_paperlesstask";
     private readonly PaperlessOptions _options = options.Value;
+
+    public async Task VerifyStartupPrerequisitesAsync(CancellationToken cancellationToken)
+    {
+        using (var request = CreateRequest(HttpMethod.Get, "api/profile/"))
+        using (var response = await httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken))
+        {
+            if (!response.IsSuccessStatusCode)
+                throw new PaperlessStartupException(
+                    $"The profile permission check failed with HTTP {(int)response.StatusCode}.");
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            var missing = FindMissingPermissions(json.RootElement);
+            if (missing.Count > 0)
+                throw new PaperlessStartupException(
+                    $"The Paperless account is missing required permissions: {string.Join(", ", missing)}.");
+        }
+
+        using var taskRequest = CreateRequest(HttpMethod.Get, "api/tasks/?page_size=1");
+        using var taskResponse = await httpClient.SendAsync(
+            taskRequest,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+        if (!taskResponse.IsSuccessStatusCode)
+            throw new PaperlessStartupException(
+                $"The task-list access check failed with HTTP {(int)taskResponse.StatusCode}.");
+    }
 
     public async Task<IReadOnlyList<PaperlessTaskResult>> GetTasksAsync(CancellationToken cancellationToken)
     {
@@ -85,6 +118,29 @@ public sealed class PaperlessClient(HttpClient httpClient, IOptions<PaperlessOpt
         return tasks;
     }
 
+    internal static IReadOnlyList<string> FindMissingPermissions(JsonElement profile)
+    {
+        if (profile.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("Paperless returned an invalid profile response.");
+
+        if (profile.TryGetProperty("is_superuser", out var superuser) &&
+            superuser.ValueKind == JsonValueKind.True)
+            return [];
+
+        if (!profile.TryGetProperty("permissions", out var permissions) ||
+            permissions.ValueKind != JsonValueKind.Array)
+            throw new InvalidDataException("Paperless returned an invalid profile permission response.");
+
+        var granted = permissions
+            .EnumerateArray()
+            .Where(value => value.ValueKind == JsonValueKind.String)
+            .Select(value => value.GetString()!)
+            .ToHashSet(StringComparer.Ordinal);
+        return new[] { AddDocumentPermission, ViewTaskPermission }
+            .Where(permission => !granted.Contains(permission))
+            .ToArray();
+    }
+
     private static string? GetString(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
@@ -92,3 +148,5 @@ public sealed class PaperlessClient(HttpClient httpClient, IOptions<PaperlessOpt
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String &&
         DateTimeOffset.TryParse(value.GetString(), out var parsed) ? parsed : null;
 }
+
+public sealed class PaperlessStartupException(string message) : Exception(message);
