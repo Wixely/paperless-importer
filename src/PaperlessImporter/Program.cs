@@ -2,10 +2,11 @@ using Microsoft.Extensions.Options;
 using PaperlessImporter;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
 
 builder.Services
     .AddOptions<ImporterOptions>()
-    .BindConfiguration(ImporterOptions.SectionName)
+    .Bind(builder.Configuration.GetSection(ImporterOptions.SectionName))
     .Validate(options =>
         options.Locations.Length > 0 &&
         options.Locations.All(location =>
@@ -35,7 +36,7 @@ builder.Services
     .ValidateOnStart();
 builder.Services
     .AddOptions<PaperlessOptions>()
-    .BindConfiguration(PaperlessOptions.SectionName)
+    .Bind(builder.Configuration.GetSection(PaperlessOptions.SectionName))
     .Validate(options => options.BaseUrl is { IsAbsoluteUri: true }, "Paperless:BaseUrl must be an absolute URL.")
     .Validate(options => !string.IsNullOrWhiteSpace(options.Token) || !string.IsNullOrWhiteSpace(options.TokenFile),
         "Paperless:Token or Paperless:TokenFile is required.")
@@ -70,6 +71,11 @@ try
 catch (PaperlessStartupException exception)
 {
     Console.Error.WriteLine($"Startup preflight failed: {exception.Message}");
+    return 78;
+}
+catch (OptionsValidationException)
+{
+    Console.Error.WriteLine("Startup preflight failed: required configuration is missing or invalid.");
     return 78;
 }
 catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException)

@@ -58,6 +58,9 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-10, development API: login-to-token exchange succeeded over trusted HTTPS and `/api/profile/` succeeded. The profile reports neither document-add nor PaperlessTask-view permission; a task-list request returned HTTP 403 without inspecting task data.
 - 2026-10-10, automated: `dotnet test PaperlessImporter.slnx --configuration Release` passed all 19 tests after adding the mandatory startup permission and task-endpoint preflight, including an effective-access HTTP 403 case.
 - 2026-10-10, development API: `/api/profile/` on Paperless-ngx 2.20.4 was verified not to expose permissions. `/api/ui_settings/` is the installed-version contract for effective permissions and itself requires `documents.view_uisettings`; the startup preflight was corrected accordingly.
+- 2026-10-10, live executable: a real process invocation exposed that source-generated binding did not populate `init`-only deployment options. Configuration-bound properties were changed to setters, host-level binding coverage was added, option failures were redacted, and default HTTP client URL logging was suppressed.
+- 2026-10-10, automated: Release build passed with zero warnings and all 20 tests passed after adding host-level Paperless and directory-mapping configuration coverage.
+- 2026-10-10, development API/live executable: Docker-style environment configuration reached the real Paperless preflight. The process exited 78 before filesystem access because UI-settings permission introspection returned 403, and captured output contained no endpoint URL.
 
 ## Recommended next action
 

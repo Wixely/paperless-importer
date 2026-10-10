@@ -1,9 +1,40 @@
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace PaperlessImporter.Tests;
 
 public sealed class PaperlessClientTests
 {
+    [Fact]
+    public void HostCommandLineConfigurationBindsPaperlessOptions()
+    {
+        var builder = Host.CreateApplicationBuilder([
+            "--Paperless:BaseUrl=https://paperless.example.invalid/",
+            "--Paperless:TokenFile=synthetic-token-path",
+            "--Importer:PollIntervalSeconds=37",
+            "--Importer:Locations:0:InputPath=synthetic-inbox"
+        ]);
+        builder.Services
+            .AddOptions<PaperlessOptions>()
+            .Bind(builder.Configuration.GetSection(PaperlessOptions.SectionName));
+        builder.Services
+            .AddOptions<ImporterOptions>()
+            .Bind(builder.Configuration.GetSection(ImporterOptions.SectionName));
+        builder.Services.AddWindowsService();
+        builder.Services.AddSystemd();
+        using var host = builder.Build();
+
+        var options = host.Services.GetRequiredService<IOptions<PaperlessOptions>>().Value;
+        var importer = host.Services.GetRequiredService<IOptions<ImporterOptions>>().Value;
+
+        Assert.Equal(new Uri("https://paperless.example.invalid/"), options.BaseUrl);
+        Assert.Equal("synthetic-token-path", options.TokenFile);
+        Assert.Equal(37, importer.PollIntervalSeconds);
+        Assert.Equal("synthetic-inbox", importer.Locations[0].InputPath);
+    }
+
     [Fact]
     public void AcceptsRequiredLeastPrivilegePermissions()
     {

@@ -120,7 +120,7 @@ Liveness requires a recent worker heartbeat. Readiness additionally requires a r
 
 ## Current evidence
 
-Automated checks through 2026-10-10 cover readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, startup permission enforcement and task-endpoint probing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 19 tests. NativeAOT and container execution remain unverified on this workstation because the Windows C++ linker and Docker are not installed.
+Automated checks through 2026-10-10 cover deployment configuration binding, readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, startup permission enforcement and task-endpoint probing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 20 tests. A live Windows process accepted Docker-style environment configuration, exited with code 78 for the current account's missing introspection permission, and did not emit the configured endpoint. NativeAOT and container execution remain unverified on this workstation because the Windows C++ linker and Docker are not installed.
 
 ## What remains
 

@@ -32,11 +32,9 @@ public sealed class ImporterWorkerTests : IDisposable
     [Fact]
     public async Task DeleteDispositionRemovesSuccessfulClaim()
     {
-        var location = CreateLocation("delete") with
-        {
-            SuccessDisposition = SuccessDisposition.Delete,
-            OutputPath = string.Empty
-        };
+        var location = CreateLocation("delete");
+        location.SuccessDisposition = SuccessDisposition.Delete;
+        location.OutputPath = string.Empty;
         var options = CreateOptions(location);
         var claimDirectory = await CreateClaimAsync(location, "synthetic.pdf");
         var client = SuccessfulClient("synthetic.pdf");
@@ -51,7 +49,8 @@ public sealed class ImporterWorkerTests : IDisposable
     [Fact]
     public async Task RetainDispositionMarksSuccessfulClaimCompleteAndDoesNotReprocessIt()
     {
-        var location = CreateLocation("retain") with { SuccessDisposition = SuccessDisposition.Retain };
+        var location = CreateLocation("retain");
+        location.SuccessDisposition = SuccessDisposition.Retain;
         var options = CreateOptions(location);
         var claimDirectory = await CreateClaimAsync(location, "synthetic.pdf");
         var client = SuccessfulClient("synthetic.pdf");
