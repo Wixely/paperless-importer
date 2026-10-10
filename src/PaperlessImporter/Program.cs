@@ -11,11 +11,16 @@ builder.Services
         options.Locations.All(location =>
             !string.IsNullOrWhiteSpace(location.InputPath) &&
             !string.IsNullOrWhiteSpace(location.ProcessingPath) &&
-            !string.IsNullOrWhiteSpace(location.OutputPath) &&
             !string.IsNullOrWhiteSpace(location.QuarantinePath) &&
+            (location.SuccessDisposition != SuccessDisposition.Move ||
+                !string.IsNullOrWhiteSpace(location.OutputPath)) &&
             !PathsEqual(location.InputPath, location.ProcessingPath) &&
-            !PathsEqual(location.InputPath, location.OutputPath) &&
-            !PathsEqual(location.InputPath, location.QuarantinePath)) &&
+            !PathsEqual(location.InputPath, location.QuarantinePath) &&
+            !PathsEqual(location.ProcessingPath, location.QuarantinePath) &&
+            (location.SuccessDisposition != SuccessDisposition.Move ||
+                (!PathsEqual(location.InputPath, location.OutputPath) &&
+                 !PathsEqual(location.ProcessingPath, location.OutputPath) &&
+                 !PathsEqual(location.OutputPath, location.QuarantinePath)))) &&
         !string.IsNullOrWhiteSpace(options.HealthPath) &&
         options.StablePollsRequired >= 2 &&
         options.MinimumAgeSeconds > 0 &&

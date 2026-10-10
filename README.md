@@ -17,7 +17,7 @@ The importer is intentionally stateless. It has no database and stores no token,
 4. Read Paperless task records and look for a recent matching `task_file_name` before uploading.
 5. If no matching task exists, upload with `POST /api/documents/post_document/`.
 6. Leave the claimed source in processing while the Paperless task is pending.
-7. Move it to that input's configured output directory only after `SUCCESS`, or to its quarantine directory after `FAILURE`.
+7. Apply that location's configured `Move`, `Delete`, or `Retain` action only after `SUCCESS`, or preserve a failed import in quarantine after `FAILURE`.
 
 Each processing directory is a restart-recovery queue. Original filenames are preserved there so they can be compared with Paperless tasks. Logs contain only event categories, location indexes, counts, and redacted error codes.
 
@@ -42,6 +42,7 @@ There is no exactly-once guarantee without durable idempotency state. A duplicat
 | `Importer__Locations__0__ProcessingPath` | `data/processing` | First importer-owned claim directory |
 | `Importer__Locations__0__OutputPath` | `data/archive` | First destination after `SUCCESS` |
 | `Importer__Locations__0__QuarantinePath` | `data/quarantine` | First destination after `FAILURE` |
+| `Importer__Locations__0__SuccessDisposition` | `Move` | `Move`, `Delete`, or `Retain` after `SUCCESS` |
 | `Importer__StablePollsRequired` | `2` | Consecutive identical observations required |
 | `Importer__MinimumAgeSeconds` | `30` | Minimum source age before claim |
 | `Importer__PollIntervalSeconds` | `10` | Normal polling interval |
@@ -50,7 +51,7 @@ There is no exactly-once guarantee without durable idempotency state. A duplicat
 
 Never put a real token, production URL, private CA, or sensitive filename in the repository. For a private CA, mount a complete trusted PEM bundle and set `SSL_CERT_FILE`; TLS validation is never disabled.
 
-Add further mappings by incrementing the index (`Locations__1`, `Locations__2`, and so on) and mounting each root into the container. All four paths within a mapping should be on the same mounted filesystem so claim and final disposition use atomic rename. Poll interval, minimum age, and stable-poll count are configurable in Compose through `POLL_INTERVAL_SECONDS`, `MINIMUM_AGE_SECONDS`, and `STABLE_POLLS_REQUIRED`.
+Add further mappings by incrementing the index (`Locations__1`, `Locations__2`, and so on) and mounting each root into the container. Input and processing must be on the same filesystem so claiming is atomic. Output and quarantine may be separate mounts: terminal disposition copies to a claim-specific temporary file, flushes it, atomically renames it at the destination, verifies an existing retry target by SHA-256, and only then deletes the claimed source. `Retain` leaves the file in a completed processing claim that future polls skip. Poll interval, minimum age, stable-poll count, and success disposition are configurable in Compose.
 
 ## Run and test locally
 
@@ -95,14 +96,14 @@ Liveness requires a recent worker heartbeat. Readiness additionally requires a r
 
 ## Current evidence
 
-Automated checks through 2026-10-10 cover readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, duplicate avoidance for a matching task, claim retention after upload, successful output movement, and separate health semantics. The source build passed with zero warnings and all 11 tests passed. NativeAOT and container execution remain unverified on this workstation because the Windows C++ linker and Docker are not installed.
+Automated checks through 2026-10-10 cover readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 14 tests. NativeAOT and container execution remain unverified on this workstation because the Windows C++ linker and Docker are not installed.
 
 ## What remains
 
-- Supply the dedicated least-privilege Paperless token, HTTPS endpoint, and trusted CA bundle if required.
+- Obtain and mount a dedicated least-privilege Paperless token and trusted CA bundle if required; never retain the supplied login password in deployment configuration.
 - Confirm the Paperless service account can list tasks as well as upload.
 - Validate task retention, filename normalization, and queue visibility using synthetic PDF and image fixtures.
 - Validate atomic rename, open-file behaviour, outage recovery, and non-root permissions on each intended NFS mount.
-- Choose final archive retention and the exclusive cutover that prevents Paperless's native consumer racing this importer.
+- Complete the exclusive cutover that prevents Paperless's native consumer racing this importer.
 
 Recommended next action: configure a disposable/staging Paperless account and run the documented synthetic end-to-end acceptance before any production cutover. Detailed status is maintained in [docs/work-queue.md](docs/work-queue.md).

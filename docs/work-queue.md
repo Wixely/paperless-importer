@@ -17,6 +17,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | Complete | Keep polling resilient to filesystem/NFS failures | Implementation agent | Startup directory work moved inside error boundaries; mapping failures are isolated and retried with bounded backoff |
 | Complete | Atomically claim files without a database and recover claims after restart | Implementation agent | Unique processing directories are re-enumerated; automated claim reconciliation tests passed on 2026-10-09 |
 | Complete | Implement Paperless upload, task parsing, and terminal disposition | Implementation agent | Contract parsing and worker reconciliation tests passed on 2026-10-09 |
+| Complete | Support move, delete, and retained-claim success policies across separate mounts | Implementation agent | Automated disposition and deterministic collision tests passed on 2026-10-10; `docs/decisions/2026-10-10-success-disposition.md` |
 | Complete | Add redacted logs and separate liveness/readiness checks | Implementation agent | Automated health tests passed on 2026-10-09 |
 | Complete | Add interactive, Windows Service, systemd, and Docker packaging assets | Implementation agent | Assets present; build/runtime verification tracked below |
 | Complete | Add configuration and operator documentation | Implementation agent | README documents environment, mounted secret, CA, operation, health, and limitations |
@@ -27,7 +28,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | --- | --- | --- | --- |
 | Blocked | Publish the self-contained single-file NativeAOT executables | Implementation agent | Windows requires the missing Visual Studio C++ linker workload; Linux publish is intended to run in Docker; the workstation also reached zero free disk during a fallback publish on 2026-10-09 |
 | Blocked | Build and smoke-test the container | Implementation agent | Docker CLI/engine is not installed on this workstation as observed on 2026-10-09 |
-| Not started | Supply a dedicated Paperless endpoint/token and trusted CA bundle | User | Credentials remain external; task-list and upload permissions verified |
+| Blocked | Supply a dedicated Paperless endpoint/token and trusted CA bundle | User + implementation agent | Development token acquired over trusted HTTPS, but the account lacks both `documents.add_document` and `documents.view_paperlesstask`; `/api/tasks/` returns 403 |
 | Not started | Validate the Paperless task-list contract and retention | User + implementation agent | Synthetic upload exposes filename, creation time, and terminal state long enough for reconciliation |
 | Not started | Observe representative printer writes | Implementation agent | Dated non-sensitive evidence describes open/write/rename behaviour and timestamp resolution |
 | Not started | Validate same-filesystem atomic rename and permissions on intended NFS mount | Implementation agent | Safe synthetic fixture moves successfully under deployment UID/GID |
@@ -38,7 +39,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 
 | State | Task | Owner | Exit evidence |
 | --- | --- | --- | --- |
-| Not started | Choose archive retention | User | Decision record states retention/deletion and recovery implications |
+| Complete | Choose archive retention for the test deployment | User | `Move` to the separately mounted importer archive; other mappings may select `Delete` or `Retain` |
 | Not started | Define exclusive directory ownership and Paperless native-consumer cutover/rollback | User + implementation agent | Deployment layout prevents competing consumers |
 | Not started | Confirm timing, backlog, and alert thresholds | User | Values recorded as acceptance criteria |
 
@@ -52,7 +53,9 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-09, environment: a fallback self-contained publish was stopped by zero free disk space; generated build output was cleaned, restoring approximately 15 MB, but no further publish was attempted.
 - 2026-10-10, automated: `dotnet build PaperlessImporter.slnx --no-restore` succeeded with zero warnings and zero errors after multi-location/NFS hardening.
 - 2026-10-10, automated: `dotnet test PaperlessImporter.slnx --no-build --no-restore --verbosity quiet` passed all 11 tests, including open-file deferral and unavailable-location isolation.
+- 2026-10-10, automated: `dotnet test PaperlessImporter.slnx --configuration Release` passed all 14 tests after adding configurable success dispositions and cross-mount terminal transfer.
+- 2026-10-10, development API: login-to-token exchange succeeded over trusted HTTPS and `/api/profile/` succeeded. The profile reports neither document-add nor PaperlessTask-view permission; a task-list request returned HTTP 403 without inspecting task data.
 
 ## Recommended next action
 
-Use the local API and synthetic folder the user will provide to run the Paperless contract, open-file, output-move, restart, and mount-outage acceptance checks. Do not touch the production NFS share or change the native Paperless consumer without a separate explicit request.
+Grant the importer account `Document: Add` and `PaperlessTask: View`, then repeat the permission probe before deploying into a synthetic-only subdirectory. Do not change the native Paperless consumer without a separate explicit request.

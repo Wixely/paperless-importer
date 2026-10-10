@@ -30,6 +30,64 @@ public sealed class ImporterWorkerTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteDispositionRemovesSuccessfulClaim()
+    {
+        var location = CreateLocation("delete") with
+        {
+            SuccessDisposition = SuccessDisposition.Delete,
+            OutputPath = string.Empty
+        };
+        var options = CreateOptions(location);
+        var claimDirectory = await CreateClaimAsync(location, "synthetic.pdf");
+        var client = SuccessfulClient("synthetic.pdf");
+
+        await CreateWorker(options, client)
+            .ScanOnceAsync(DateTimeOffset.UtcNow, TestContext.Current.CancellationToken);
+
+        Assert.False(Directory.Exists(claimDirectory));
+        Assert.Equal(0, client.UploadCount);
+    }
+
+    [Fact]
+    public async Task RetainDispositionMarksSuccessfulClaimCompleteAndDoesNotReprocessIt()
+    {
+        var location = CreateLocation("retain") with { SuccessDisposition = SuccessDisposition.Retain };
+        var options = CreateOptions(location);
+        var claimDirectory = await CreateClaimAsync(location, "synthetic.pdf");
+        var client = SuccessfulClient("synthetic.pdf");
+        var worker = CreateWorker(options, client);
+
+        await worker.ScanOnceAsync(DateTimeOffset.UtcNow, TestContext.Current.CancellationToken);
+        await worker.ScanOnceAsync(DateTimeOffset.UtcNow.AddSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.False(Directory.Exists(claimDirectory));
+        Assert.Single(Directory.EnumerateDirectories(location.ProcessingPath, "completed-*"));
+        Assert.Equal(0, client.UploadCount);
+    }
+
+    [Fact]
+    public async Task ExistingDifferentArchiveFileUsesStableClaimSpecificName()
+    {
+        var options = CreateOptions();
+        var location = options.Locations[0];
+        var claimDirectory = await CreateClaimAsync(location, "synthetic.pdf");
+        Directory.CreateDirectory(location.OutputPath);
+        await File.WriteAllTextAsync(
+            Path.Combine(location.OutputPath, "synthetic.pdf"),
+            "different fixture",
+            TestContext.Current.CancellationToken);
+
+        await CreateWorker(options, SuccessfulClient("synthetic.pdf"))
+            .ScanOnceAsync(DateTimeOffset.UtcNow, TestContext.Current.CancellationToken);
+
+        var expected = Path.Combine(
+            location.OutputPath,
+            $"synthetic-{Path.GetFileName(claimDirectory)}.pdf");
+        Assert.True(File.Exists(expected));
+        Assert.False(Directory.Exists(claimDirectory));
+    }
+
+    [Fact]
     public async Task MissingTaskUploadsOnceAndLeavesClaimForReconciliation()
     {
         var options = CreateOptions();
@@ -111,6 +169,11 @@ public sealed class ImporterWorkerTests : IDisposable
     private ImporterOptions CreateOptions()
     {
         var location = CreateLocation("default");
+        return CreateOptions(location);
+    }
+
+    private ImporterOptions CreateOptions(ImportLocationOptions location)
+    {
         return new ImporterOptions
         {
             Locations = [location],
@@ -131,6 +194,24 @@ public sealed class ImporterWorkerTests : IDisposable
         Directory.CreateDirectory(location.InputPath);
         return location;
     }
+
+    private static async Task<string> CreateClaimAsync(ImportLocationOptions location, string fileName)
+    {
+        var claimDirectory = Path.Combine(location.ProcessingPath, "claim");
+        Directory.CreateDirectory(claimDirectory);
+        var claimedPath = Path.Combine(claimDirectory, fileName);
+        await File.WriteAllTextAsync(claimedPath, "synthetic fixture", TestContext.Current.CancellationToken);
+        File.SetLastWriteTimeUtc(claimedPath, DateTime.UtcNow.AddMinutes(-1));
+        return claimDirectory;
+    }
+
+    private static FakePaperlessClient SuccessfulClient(string fileName) =>
+        new([new PaperlessTaskResult(
+            "task-1",
+            fileName,
+            DateTimeOffset.UtcNow,
+            PaperlessTaskState.Success,
+            null)]);
 
     private static ImporterWorker CreateWorker(ImporterOptions options, IPaperlessClient client) =>
         new(client, Options.Create(options), new HealthStatus(options.HealthPath), NullLogger<ImporterWorker>.Instance);

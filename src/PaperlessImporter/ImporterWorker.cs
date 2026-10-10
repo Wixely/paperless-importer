@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 
 namespace PaperlessImporter;
@@ -93,6 +94,7 @@ public sealed class ImporterWorker(
 
         foreach (var claimDirectory in Directory.EnumerateDirectories(location.ProcessingPath))
         {
+            if (IsCompletedClaim(claimDirectory)) continue;
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
@@ -172,13 +174,18 @@ public sealed class ImporterWorker(
         if (!string.IsNullOrEmpty(matchingTask.TaskId))
         {
             if (matchingTask.State == PaperlessTaskState.Pending) return false;
-            var destination = matchingTask.State == PaperlessTaskState.Success
-                ? location.OutputPath
-                : location.QuarantinePath;
-            MoveToUnique(path, destination);
-            Directory.Delete(claimDirectory, false);
+
+            if (matchingTask.State == PaperlessTaskState.Success)
+            {
+                FinalizeSuccessfulClaim(path, claimDirectory, location);
+            }
+            else
+            {
+                TransferToDestination(path, claimDirectory, location.QuarantinePath);
+                Directory.Delete(claimDirectory, false);
+            }
             logger.LogInformation(
-                "A Paperless task reached {TaskState}; the source was moved to its configured destination",
+                "A Paperless task reached {TaskState}; the configured source disposition completed",
                 matchingTask.State);
             return true;
         }
@@ -235,17 +242,83 @@ public sealed class ImporterWorker(
     private static string NormalizeExtension(string extension) =>
         extension.StartsWith('.') ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}";
 
-    private static void MoveToUnique(string source, string destinationDirectory)
+    private static void FinalizeSuccessfulClaim(
+        string source,
+        string claimDirectory,
+        ImportLocationOptions location)
+    {
+        switch (location.SuccessDisposition)
+        {
+            case SuccessDisposition.Move:
+                TransferToDestination(source, claimDirectory, location.OutputPath);
+                Directory.Delete(claimDirectory, false);
+                break;
+            case SuccessDisposition.Delete:
+                File.Delete(source);
+                Directory.Delete(claimDirectory, false);
+                break;
+            case SuccessDisposition.Retain:
+                var parent = Path.GetDirectoryName(claimDirectory)
+                    ?? throw new InvalidOperationException("A claim directory must have a parent.");
+                var completed = Path.Combine(parent, $"completed-{Path.GetFileName(claimDirectory)}");
+                if (!Directory.Exists(completed)) Directory.Move(claimDirectory, completed);
+                break;
+            default:
+                throw new InvalidOperationException("The success disposition is not supported.");
+        }
+    }
+
+    private static void TransferToDestination(
+        string source,
+        string claimDirectory,
+        string destinationDirectory)
     {
         Directory.CreateDirectory(destinationDirectory);
         var fileName = Path.GetFileName(source);
         var destination = Path.Combine(destinationDirectory, fileName);
         if (File.Exists(destination))
         {
+            if (FilesMatch(source, destination))
+            {
+                File.Delete(source);
+                return;
+            }
+
+            var claimId = Path.GetFileName(claimDirectory);
             destination = Path.Combine(destinationDirectory,
-                $"{Path.GetFileNameWithoutExtension(fileName)}-{Guid.NewGuid():N}{Path.GetExtension(fileName)}");
+                $"{Path.GetFileNameWithoutExtension(fileName)}-{claimId}{Path.GetExtension(fileName)}");
+            if (File.Exists(destination))
+            {
+                if (!FilesMatch(source, destination))
+                    throw new IOException("A deterministic archive destination contains different data.");
+                File.Delete(source);
+                return;
+            }
         }
-        File.Move(source, destination, false);
+
+        var temporary = Path.Combine(destinationDirectory, $".{Path.GetFileName(claimDirectory)}.partial");
+        using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read))
+        using (var output = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            input.CopyTo(output);
+            output.Flush(true);
+        }
+
+        File.Move(temporary, destination, false);
+        File.Delete(source);
+    }
+
+    private static bool FilesMatch(string left, string right)
+    {
+        var leftInfo = new FileInfo(left);
+        var rightInfo = new FileInfo(right);
+        if (leftInfo.Length != rightInfo.Length) return false;
+
+        using var leftStream = File.OpenRead(left);
+        using var rightStream = File.OpenRead(right);
+        var leftHash = SHA256.HashData(leftStream);
+        var rightHash = SHA256.HashData(rightStream);
+        return CryptographicOperations.FixedTimeEquals(leftHash, rightHash);
     }
 
     private static void EnsureLocationAvailable(ImportLocationOptions location)
@@ -254,7 +327,8 @@ public sealed class ImporterWorker(
             throw new DirectoryNotFoundException("The configured input directory is unavailable.");
 
         Directory.CreateDirectory(location.ProcessingPath);
-        Directory.CreateDirectory(location.OutputPath);
+        if (location.SuccessDisposition == SuccessDisposition.Move)
+            Directory.CreateDirectory(location.OutputPath);
         Directory.CreateDirectory(location.QuarantinePath);
     }
 
@@ -266,7 +340,10 @@ public sealed class ImporterWorker(
             try
             {
                 count += Directory.EnumerateFiles(location.InputPath).LongCount();
-                count += Directory.EnumerateFiles(location.ProcessingPath, "*", SearchOption.AllDirectories).LongCount();
+                count += Directory.EnumerateDirectories(location.ProcessingPath)
+                    .Where(path => !IsCompletedClaim(path))
+                    .SelectMany(path => Directory.EnumerateFiles(path))
+                    .LongCount();
             }
             catch (IOException) { return -1; }
             catch (UnauthorizedAccessException) { return -1; }
@@ -296,6 +373,9 @@ public sealed class ImporterWorker(
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
     }
+
+    private static bool IsCompletedClaim(string path) =>
+        Path.GetFileName(path).StartsWith("completed-", StringComparison.Ordinal);
 
     private static string ErrorCode(Exception exception) => exception switch
     {

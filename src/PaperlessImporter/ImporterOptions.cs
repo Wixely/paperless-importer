@@ -17,12 +17,20 @@ public sealed class ImporterOptions
     public int TaskClockSkewSeconds { get; init; } = 300;
 }
 
-public sealed class ImportLocationOptions
+public sealed record ImportLocationOptions
 {
     public string InputPath { get; init; } = "data/inbox";
     public string ProcessingPath { get; init; } = "data/processing";
     public string OutputPath { get; init; } = "data/archive";
     public string QuarantinePath { get; init; } = "data/quarantine";
+    public SuccessDisposition SuccessDisposition { get; init; } = SuccessDisposition.Move;
+}
+
+public enum SuccessDisposition
+{
+    Move,
+    Delete,
+    Retain
 }
 
 public sealed class PaperlessOptions

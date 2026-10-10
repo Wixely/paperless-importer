@@ -10,6 +10,7 @@ services:
       Importer__Locations__0__ProcessingPath: /imports/scanner-1/processing
       Importer__Locations__0__OutputPath: /imports/scanner-1/output
       Importer__Locations__0__QuarantinePath: /imports/scanner-1/quarantine
+      Importer__Locations__0__SuccessDisposition: "${SUCCESS_DISPOSITION:-Move}"
       Importer__HealthPath: /imports/scanner-1/health/status.txt
       Importer__PollIntervalSeconds: "${POLL_INTERVAL_SECONDS:-10}"
       Importer__MinimumAgeSeconds: "${MINIMUM_AGE_SECONDS:-30}"

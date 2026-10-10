@@ -1,6 +1,6 @@
 # Directory mappings and NFS recovery
 
-- Status: Accepted
+- Status: Accepted; terminal disposition details partially superseded by `2026-10-10-success-disposition.md`
 - Date: 2026-10-10
 - Source: User direction during MVP hardening
 
