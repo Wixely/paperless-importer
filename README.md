@@ -49,6 +49,8 @@ The account represented by the API token must have all three of these global per
 
 Use a dedicated regular account with only the permissions it needs; superuser access is unnecessary and discouraged.
 
+Paperless-ngx versions before 2.20.6 have a documented authorization gap in the upload endpoint: any authenticated account can submit a document even without `Document: Add`. This importer still validates the advertised permission itself, but the Paperless deployment should be upgraded to 2.20.6 or later before production so the server independently enforces the same boundary. See [GHSA-jqwv-hx7q-fxh3](https://github.com/paperless-ngx/paperless-ngx/security/advisories/GHSA-jqwv-hx7q-fxh3).
+
 Every normal process start performs a mandatory preflight before any directory is scanned or file is claimed. It reads `/api/ui_settings/`, verifies the three effective permissions above, and makes a one-item request to `/api/tasks/` to confirm task endpoint access. Missing permissions or a rejected settings/task request terminate the process with a non-zero exit code. An unavailable or invalid token also terminates startup. Docker therefore remains stopped or restarting instead of running an importer that cannot perform stateless reconciliation. Health-check command invocations do not repeat the remote preflight.
 
 ## Configuration
@@ -126,6 +128,7 @@ Automated checks through 2026-10-10 cover deployment configuration binding, read
 
 - Obtain and mount a dedicated least-privilege Paperless token and trusted CA bundle if required; never retain the supplied login password in deployment configuration.
 - Grant and verify `documents.add_document`, `documents.view_paperlesstask`, and `documents.view_uisettings` for the Paperless service account.
+- Upgrade the deployed Paperless-ngx 2.20.4 instance to a version containing the 2.20.6 upload-authorization fix before production acceptance.
 - Validate task retention, filename normalization, and queue visibility using synthetic PDF and image fixtures.
 - Validate atomic rename, open-file behaviour, outage recovery, and non-root permissions on each intended NFS mount.
 - Complete the exclusive cutover that prevents Paperless's native consumer racing this importer.

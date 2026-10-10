@@ -30,6 +30,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | Blocked | Publish the self-contained single-file NativeAOT executables | Implementation agent | Windows requires the missing Visual Studio C++ linker workload; Linux publish is intended to run in Docker; the workstation also reached zero free disk during a fallback publish on 2026-10-09 |
 | Blocked | Build and smoke-test the container | Implementation agent | Docker CLI/engine is not installed on this workstation as observed on 2026-10-09 |
 | Blocked | Supply a dedicated Paperless endpoint/token and trusted CA bundle | User + implementation agent | Development token acquired over trusted HTTPS. Task access now returns 200, but effective permissions cannot be validated until the account has `documents.view_uisettings`; document-add permission remains unverified |
+| Blocked | Upgrade Paperless beyond the upload-authorization vulnerability | User | Deployed 2.20.4 is affected by GHSA-jqwv-hx7q-fxh3; upstream fix begins at 2.20.6 |
 | Not started | Validate the Paperless task-list contract and retention | User + implementation agent | Synthetic upload exposes filename, creation time, and terminal state long enough for reconciliation |
 | Not started | Observe representative printer writes | Implementation agent | Dated non-sensitive evidence describes open/write/rename behaviour and timestamp resolution |
 | Not started | Validate same-filesystem atomic rename and permissions on intended NFS mount | Implementation agent | Safe synthetic fixture moves successfully under deployment UID/GID |
@@ -61,7 +62,8 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-10, live executable: a real process invocation exposed that source-generated binding did not populate `init`-only deployment options. Configuration-bound properties were changed to setters, host-level binding coverage was added, option failures were redacted, and default HTTP client URL logging was suppressed.
 - 2026-10-10, automated: Release build passed with zero warnings and all 20 tests passed after adding host-level Paperless and directory-mapping configuration coverage.
 - 2026-10-10, development API/live executable: Docker-style environment configuration reached the real Paperless preflight. The process exited 78 before filesystem access because UI-settings permission introspection returned 403, and captured output contained no endpoint URL.
+- 2026-10-10, primary-source security review: the installed Paperless-ngx 2.20.4 upload view requires authentication but not `documents.add_document`; upstream advisory GHSA-jqwv-hx7q-fxh3 identifies 2.20.6 as the first patched release.
 
 ## Recommended next action
 
-Grant the importer account `Document: Add`, `PaperlessTask: View`, and `UISettings: View`, then repeat the permission probe before deploying into a synthetic-only subdirectory. Do not change the native Paperless consumer without a separate explicit request.
+Grant the importer account `Document: Add`, `PaperlessTask: View`, and `UISettings: View`, and schedule the Paperless upgrade to a patched release. Then repeat the permission probe before deploying into a synthetic-only subdirectory. Do not change Paperless or its native consumer without a separate explicit request.
