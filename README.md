@@ -7,6 +7,14 @@ Paperless Importer is a small .NET 10 worker that moves completed printer scans 
 - Intended host: private local GitLab; no remote has been created
 - License: private/closed source
 
+## Why this exists
+
+Paperless-ngx normally watches a consumption directory and imports files placed there. In the environment that prompted this project, that directory is an NFS mount and Paperless's consumer is not reliably recovering from storage interruptions. Files can accumulate in the consume directory while the Paperless container and consumer process still appear healthy. Restarting Paperless starts a fresh scan and imports the backlog, but that is a manual recovery action rather than a reliable ingestion path.
+
+The observed failure was investigated on Paperless-ngx 2.20.4 on 2026-10-09. The consumer process remained alive with queued files present, but its polling worker was no longer discovering them. The evidence was consistent with the filesystem polling worker stopping after a transient NFS error while the parent process continued running. This is a description of the observed deployment failure, not a claim that every Paperless installation or current release has the same defect.
+
+Paperless Importer moves responsibility for inbox discovery into a small, independently monitored service. It polls explicitly, survives and retries NFS failures, waits for files to finish being written, and submits completed documents through Paperless's supported HTTP API. Paperless still performs document ingestion, OCR, classification, indexing, and storage; this service replaces only the unreliable consume-directory handoff.
+
 ## MVP behaviour
 
 The importer is intentionally stateless. It has no database and stores no token, URL, document content, or filename in application state.
