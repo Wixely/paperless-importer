@@ -1,0 +1,22 @@
+[Unit]
+Description=Paperless Importer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=paperless-importer
+Group=paperless-importer
+WorkingDirectory=/opt/paperless-importer
+EnvironmentFile=/etc/paperless-importer/environment
+ExecStart=/opt/paperless-importer/paperless-importer
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/paperless-import
+
+[Install]
+WantedBy=multi-user.target

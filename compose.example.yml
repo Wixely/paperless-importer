@@ -1,0 +1,28 @@
+services:
+  paperless-importer:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      Paperless__BaseUrl: "${PAPERLESS_URL:?set PAPERLESS_URL}"
+      Paperless__TokenFile: /run/secrets/paperless_token
+      Importer__Locations__0__InputPath: /imports/scanner-1/inbox
+      Importer__Locations__0__ProcessingPath: /imports/scanner-1/processing
+      Importer__Locations__0__OutputPath: /imports/scanner-1/output
+      Importer__Locations__0__QuarantinePath: /imports/scanner-1/quarantine
+      Importer__HealthPath: /imports/scanner-1/health/status.txt
+      Importer__PollIntervalSeconds: "${POLL_INTERVAL_SECONDS:-10}"
+      Importer__MinimumAgeSeconds: "${MINIMUM_AGE_SECONDS:-30}"
+      Importer__StablePollsRequired: "${STABLE_POLLS_REQUIRED:-2}"
+    volumes:
+      - type: bind
+        source: "${IMPORT_ROOT:?set IMPORT_ROOT}"
+        target: /imports/scanner-1
+    secrets:
+      - paperless_token
+    # For a private CA, mount a complete trusted PEM bundle read-only and set:
+    #   SSL_CERT_FILE: /run/config/ca-bundle.pem
+
+secrets:
+  paperless_token:
+    file: "${PAPERLESS_TOKEN_FILE:?set PAPERLESS_TOKEN_FILE}"

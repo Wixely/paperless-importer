@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Paperless Importer",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/PaperlessImporter/bin/Debug/net10.0/paperless-importer.dll",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "Paperless__BaseUrl": "https://paperless.example.invalid/",
+        "Paperless__TokenFile": "${workspaceFolder}/secrets/paperless-token.txt"
+      }
+    }
+  ]
+}

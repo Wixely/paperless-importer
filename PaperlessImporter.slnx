@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/PaperlessImporter/PaperlessImporter.csproj" />
+  <Project Path="tests/PaperlessImporter.Tests/PaperlessImporter.Tests.csproj" />
+</Solution>
