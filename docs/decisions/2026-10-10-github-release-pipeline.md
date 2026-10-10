@@ -35,4 +35,4 @@ The Dockerfile uses Microsoft's NativeAOT SDK and its chiseled runtime-dependenc
 
 ## Validation
 
-The local Release test suite and workflow syntax checks must pass before the first push. The first GitHub CI and release runs must prove both target architectures build and that the resulting GHCR manifest, attestations, and GitHub release exist before the image is deployed.
+The local Release test suite passed before the first push. GitHub CI run 5 passed all 20 tests and built both target architectures. Release run 1 published `v0.1.0` as a multi-architecture GHCR manifest with SBOM and maximum-level provenance attestations, then created the corresponding GitHub release. Container runtime and mounted-filesystem acceptance remain outstanding.

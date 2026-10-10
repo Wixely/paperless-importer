@@ -29,7 +29,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | State | Task | Owner | Exit evidence |
 | --- | --- | --- | --- |
 | Blocked | Publish the self-contained single-file NativeAOT executables | Implementation agent | Windows requires the missing Visual Studio C++ linker workload; Linux publish is intended to run in Docker; the workstation also reached zero free disk during a fallback publish on 2026-10-09 |
-| Blocked | Build and smoke-test the container | Implementation agent | Docker CLI/engine is not installed on this workstation as observed on 2026-10-09 |
+| In progress | Build and smoke-test the container | Implementation agent | GitHub Actions built and published Linux AMD64/ARM64 image `v0.1.0` on 2026-10-10; runtime health and mounted-filesystem smoke tests remain outstanding |
 | Complete | Supply a dedicated Paperless endpoint/token and verify least-privilege access | User + implementation agent | Development token acquired over trusted HTTPS; UI settings and task-list requests returned HTTP 200 and advertised all three required effective permissions on 2026-10-10 |
 | Blocked | Upgrade Paperless beyond the upload-authorization vulnerability | User | Deployed 2.20.4 is affected by GHSA-jqwv-hx7q-fxh3; upstream fix begins at 2.20.6 |
 | Not started | Validate the Paperless task-list contract and retention | User + implementation agent | Synthetic upload exposes filename, creation time, and terminal state long enough for reconciliation |
@@ -65,6 +65,8 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-10, development API/live executable: Docker-style environment configuration reached the real Paperless preflight. The process exited 78 before filesystem access because UI-settings permission introspection returned 403, and captured output contained no endpoint URL.
 - 2026-10-10, primary-source security review: the installed Paperless-ngx 2.20.4 upload view requires authentication but not `documents.add_document`; upstream advisory GHSA-jqwv-hx7q-fxh3 identifies 2.20.6 as the first patched release.
 - 2026-10-10, development API: `/api/ui_settings/` and a one-item `/api/tasks/` probe both returned HTTP 200. The effective permission list contained `add_document`, `view_paperlesstask`, and `view_uisettings`; no task data, endpoint, token, or document metadata was recorded.
+- 2026-10-10, GitHub Actions CI: all 20 Release tests passed and the Dockerfile built successfully for Linux AMD64 and ARM64.
+- 2026-10-10, GitHub Actions release: tag `v0.1.0` published GHCR tags `0.1.0`, `0.1`, `0`, and `latest` as one multi-architecture manifest with SBOM and maximum-level provenance attestations; the GitHub release was published successfully.
 
 ## Recommended next action
 
