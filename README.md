@@ -4,7 +4,7 @@ Paperless Importer is a small .NET 10 worker that moves completed printer scans 
 
 - Status: MVP implemented; Paperless account permission gate accepted; awaiting synthetic environment acceptance
 - Last reviewed: 2026-10-10
-- Intended host: private local GitLab; no remote has been created
+- Source host: private GitHub repository under the Wixely account
 - License: private/closed source
 
 ## Why this exists
@@ -92,14 +92,18 @@ VS Code build, test, and debug configurations are in `.vscode/`. The debug profi
 
 ## Docker
 
-Copy `.env.example` to `.env`, set the local paths and endpoint, create the ignored token file, then use the example Compose file:
+Published releases are available as multi-architecture images for AMD64 and ARM64 from `ghcr.io/wixely/paperless-importer`. Copy `.env.example` to `.env`, set the local paths and endpoint, create the ignored token file, authenticate Docker to GHCR while the repository/package is private, then use the example Compose file:
 
 ```powershell
-docker compose --env-file .env -f compose.example.yml build
+docker compose --env-file .env -f compose.example.yml pull
 docker compose --env-file .env -f compose.example.yml up -d
 ```
 
 The image is a non-root, self-contained, single-file NativeAOT Linux executable. It exposes no network port. The example bind mount points to one filesystem containing `inbox`, `processing`, `output`, `quarantine`, and `health` directories. To add another mapping, add another bind mount and the four corresponding indexed environment settings. Mount ownership must permit the image's non-root user to rename and create files.
+
+## Build and release automation
+
+GitHub Actions runs the Release test suite and a multi-architecture container build for every pull request and push to `main`. Tags matching `vMAJOR.MINOR.PATCH` run the tests again, publish immutable semantic-version tags plus `latest` to GHCR, attach SBOM and maximum-level provenance attestations, and create a GitHub release with generated notes. Dependabot checks NuGet packages and GitHub Actions weekly. Workflow tokens use explicit least-privilege permissions; deployment credentials and Paperless configuration are never supplied to builds.
 
 On startup, check `docker compose ps` and the container log. A permission error names the missing permission code and exits with code 78; Paperless/token availability or response-contract failure exits with code 69. No input file is touched before this check succeeds.
 

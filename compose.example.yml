@@ -1,7 +1,6 @@
 services:
   paperless-importer:
-    build:
-      context: .
+    image: "ghcr.io/wixely/paperless-importer:${IMAGE_TAG:-latest}"
     restart: unless-stopped
     # Startup exits non-zero before scanning unless the token has
     # documents.add_document, documents.view_paperlesstask, and

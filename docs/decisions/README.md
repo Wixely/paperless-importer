@@ -11,3 +11,4 @@ Accepted decisions:
 - [2026-10-10: Configurable success disposition](2026-10-10-success-disposition.md)
 - [2026-10-10: Mandatory startup permission gate](2026-10-10-startup-permission-gate.md)
 - [2026-10-10: Effective permission introspection](2026-10-10-effective-permission-introspection.md)
+- [2026-10-10: GitHub release and container publishing](2026-10-10-github-release-pipeline.md)

@@ -22,6 +22,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | Complete | Fail startup unless Paperless upload and reconciliation permissions are effective | Implementation agent | Profile permission and task-endpoint preflight tests passed on 2026-10-10; `docs/decisions/2026-10-10-startup-permission-gate.md` |
 | Complete | Add interactive, Windows Service, systemd, and Docker packaging assets | Implementation agent | Assets present; build/runtime verification tracked below |
 | Complete | Add configuration and operator documentation | Implementation agent | README documents environment, mounted secret, CA, operation, health, and limitations |
+| Complete | Add GitHub CI and release automation | Implementation agent | CI tests and builds AMD64/ARM64 containers; semantic-version tags publish GHCR images with SBOM/provenance and generate GitHub releases |
 
 ## Verification and acceptance
 
