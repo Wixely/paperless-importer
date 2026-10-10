@@ -23,21 +23,21 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | Complete | Add interactive, Windows Service, systemd, and Docker packaging assets | Implementation agent | Assets present; build/runtime verification tracked below |
 | Complete | Add configuration and operator documentation | Implementation agent | README documents environment, mounted secret, CA, operation, health, and limitations |
 | Complete | Add GitHub CI and release automation | Implementation agent | CI tests and builds AMD64/ARM64 containers; semantic-version tags publish GHCR images with SBOM/provenance and generate GitHub releases |
-| In progress | Publish source and release image publicly | User + implementation agent | Repository visibility changed to public on 2026-10-10; GHCR package still needs its separate one-time public visibility change |
+| Complete | Publish source and release image publicly | User + implementation agent | Repository and GHCR package are public; anonymous image pull succeeded from the deployment Docker host on 2026-10-10 |
 
 ## Verification and acceptance
 
 | State | Task | Owner | Exit evidence |
 | --- | --- | --- | --- |
 | Blocked | Publish the self-contained single-file NativeAOT executables | Implementation agent | Windows requires the missing Visual Studio C++ linker workload; Linux publish is intended to run in Docker; the workstation also reached zero free disk during a fallback publish on 2026-10-09 |
-| In progress | Build and smoke-test the container | Implementation agent | GitHub Actions built and published Linux AMD64/ARM64 image `v0.1.0` on 2026-10-10; runtime health and mounted-filesystem smoke tests remain outstanding |
+| Complete | Build and smoke-test the container | Implementation agent | Portainer pulled release `v0.1.0`; CA and filesystem gates passed and the importer reported healthy on 2026-10-10 |
 | Complete | Supply a dedicated Paperless endpoint/token and verify least-privilege access | User + implementation agent | Development token acquired over trusted HTTPS; UI settings and task-list requests returned HTTP 200 and advertised all three required effective permissions on 2026-10-10 |
 | Blocked | Upgrade Paperless beyond the upload-authorization vulnerability | User | Deployed 2.20.4 is affected by GHSA-jqwv-hx7q-fxh3; upstream fix begins at 2.20.6 |
-| Not started | Validate the Paperless task-list contract and retention | User + implementation agent | Synthetic upload exposes filename, creation time, and terminal state long enough for reconciliation |
+| In progress | Validate the Paperless task-list contract and retention | User + implementation agent | Synthetic upload exposed filename, creation time, and terminal `FAILURE`; retention duration remains to be measured |
 | Not started | Observe representative printer writes | Implementation agent | Dated non-sensitive evidence describes open/write/rename behaviour and timestamp resolution |
-| Not started | Validate same-filesystem atomic rename and permissions on intended NFS mount | Implementation agent | Safe synthetic fixture moves successfully under deployment UID/GID |
-| Not started | Run synthetic PDF and image end-to-end acceptance | User + implementation agent | Both reach `SUCCESS`; source archives only afterward; no secrets or sensitive names logged |
-| Not started | Exercise Paperless outage, NFS outage, restart, ambiguous response, and task failure | Implementation agent | Dated observations show polling recovery and retained/quarantined sources |
+| Complete | Validate same-filesystem atomic rename and permissions on intended NFS mount | Implementation agent | Portainer startup gate passed create/write, atomic input-to-processing rename, archive write/rename, and quarantine write probes as the non-root runtime identity on 2026-10-10 |
+| Blocked | Run synthetic PDF and image end-to-end acceptance | User + implementation agent | PDF reached API acceptance and terminal task visibility, but Paperless failed while storing the parsed document with an input/output error; source was quarantined correctly |
+| In progress | Exercise Paperless outage, NFS outage, restart, ambiguous response, and task failure | Implementation agent | Live Paperless task failure was observed and the source was quarantined; remaining outage and restart cases are outstanding |
 
 ## Deployment decisions still required
 
@@ -68,7 +68,10 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-10, development API: `/api/ui_settings/` and a one-item `/api/tasks/` probe both returned HTTP 200. The effective permission list contained `add_document`, `view_paperlesstask`, and `view_uisettings`; no task data, endpoint, token, or document metadata was recorded.
 - 2026-10-10, GitHub Actions CI: all 20 Release tests passed and the Dockerfile built successfully for Linux AMD64 and ARM64.
 - 2026-10-10, GitHub Actions release: tag `v0.1.0` published GHCR tags `0.1.0`, `0.1`, `0`, and `latest` as one multi-architecture manifest with SBOM and maximum-level provenance attestations; the GitHub release was published successfully.
+- 2026-10-10, distribution: the repository and GHCR package were public, and the deployment Docker host pulled `v0.1.0` anonymously.
+- 2026-10-10, Portainer/NFS: the managed stack started without a custom network. Its fail-closed gate passed non-root create/write, atomic claim rename, archive write/rename, and quarantine write checks on the intended NFS-backed mounts. The pinned CA gate passed and the importer became healthy.
+- 2026-10-10, synthetic acceptance: a generated non-sensitive PDF was claimed and accepted through the Paperless API. The matching task remained visible and reached terminal `FAILURE` because Paperless reported an input/output error while storing the parsed document. The importer detected the failure and moved the source to quarantine; no document contents, private endpoint, token, CA material, or infrastructure path were recorded.
 
 ## Recommended next action
 
-Schedule the Paperless upgrade to a patched release, then establish a container image and mounted-secret delivery path for a synthetic-only deployment. Do not change Paperless or its native consumer without a separate explicit request.
+Diagnose and repair Paperless's document-storage input/output failure, then repeat the synthetic PDF and image acceptance until both reach `SUCCESS` and move to archive. Schedule the Paperless upgrade to a patched release before production cutover. Do not change Paperless or its native consumer without a separate explicit request.

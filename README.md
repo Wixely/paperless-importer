@@ -2,7 +2,7 @@
 
 Paperless Importer is a small .NET 10 worker that moves completed printer scans from an NFS-backed inbox into Paperless-ngx through its supported HTTP API.
 
-- Status: MVP implemented; Paperless account permission gate accepted; awaiting synthetic environment acceptance
+- Status: MVP deployed in Portainer; runtime, NFS, CA, API, and failure-quarantine acceptance completed; Paperless storage is blocking a successful terminal import
 - Last reviewed: 2026-10-10
 - Source host: public GitHub repository under the Wixely account
 - License: no license has been granted; the source is publicly visible but remains all rights reserved
@@ -92,7 +92,7 @@ VS Code build, test, and debug configurations are in `.vscode/`. The debug profi
 
 ## Docker
 
-Published releases are available as multi-architecture images for AMD64 and ARM64 from `ghcr.io/wixely/paperless-importer`. Copy `.env.example` to `.env`, set the local paths and endpoint, create the ignored token file, authenticate Docker to GHCR while the repository/package is private, then use the example Compose file:
+Published releases are available publicly as multi-architecture images for AMD64 and ARM64 from `ghcr.io/wixely/paperless-importer`. Copy `.env.example` to `.env`, set the local paths and endpoint, create the ignored token file, then use the example Compose file:
 
 ```powershell
 docker compose --env-file .env -f compose.example.yml pull
@@ -105,7 +105,7 @@ The image is a non-root, self-contained, single-file NativeAOT Linux executable.
 
 GitHub Actions runs the Release test suite and a multi-architecture container build for every pull request and push to `main`. Tags matching `vMAJOR.MINOR.PATCH` run the tests again, publish immutable semantic-version tags plus `latest` to GHCR, attach SBOM and maximum-level provenance attestations, and create a GitHub release with generated notes. Dependabot checks NuGet packages and GitHub Actions weekly. Workflow tokens use explicit least-privilege permissions; deployment credentials and Paperless configuration are never supplied to builds.
 
-The release package is intended to be public so Portainer and other Docker hosts can pull it anonymously. GitHub creates new personal-account container packages as private, so the package owner must change the GHCR package visibility to public once. GitHub does not permit a public package to be made private again.
+The release package is public, and its anonymous pull was verified from the deployment Docker host. GitHub does not permit a public package to be made private again.
 
 On startup, check `docker compose ps` and the container log. A permission error names the missing permission code and exits with code 78; Paperless/token availability or response-contract failure exits with code 69. No input file is touched before this check succeeds.
 
@@ -128,14 +128,16 @@ Liveness requires a recent worker heartbeat. Readiness additionally requires a r
 
 ## Current evidence
 
-Automated checks through 2026-10-10 cover deployment configuration binding, readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, startup permission enforcement and task-endpoint probing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 20 tests. A live development API probe confirmed HTTP 200 from UI settings and the task endpoint and confirmed all three required effective permissions without reading task data. GitHub Actions built the NativeAOT container successfully for Linux AMD64 and ARM64, then published release `v0.1.0` to GHCR with SBOM and provenance attestations. Container runtime and NFS acceptance remain outstanding.
+Automated checks through 2026-10-10 cover deployment configuration binding, readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, startup permission enforcement and task-endpoint probing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 20 tests. GitHub Actions built the NativeAOT container successfully for Linux AMD64 and ARM64, then published release `v0.1.0` to public GHCR with SBOM and provenance attestations.
+
+The released image is deployed as a Portainer stack without a custom Docker network. One-shot startup gates verified non-root create/write permissions, the same-filesystem atomic claim rename, archive/quarantine writes, and the pinned private CA before the worker started. The importer then passed its live permission and task API preflight and reported healthy. A synthetic PDF was claimed and accepted by Paperless, proving the mounted inbox, HTTPS API, token, and task reconciliation path. Paperless subsequently reported `FAILURE` with a server-side input/output error while storing the parsed document; the importer observed that terminal state and transferred the source to quarantine as designed. A successful `SUCCESS`-then-archive acceptance therefore remains blocked by Paperless storage rather than the importer.
 
 ## What remains
 
-- Obtain and mount a dedicated least-privilege Paperless token and trusted CA bundle if required; never retain the supplied login password in deployment configuration.
 - Upgrade the deployed Paperless-ngx 2.20.4 instance to a version containing the 2.20.6 upload-authorization fix before production acceptance.
-- Validate task retention, filename normalization, and queue visibility using synthetic PDF and image fixtures.
-- Validate atomic rename, open-file behaviour, outage recovery, and non-root permissions on each intended NFS mount.
+- Resolve the Paperless document-storage input/output failure, then repeat synthetic PDF and image acceptance until both reach `SUCCESS` and move to archive.
+- Validate task retention and filename normalization over the intended retention window.
+- Validate representative printer writes, open-file behaviour, and real NFS outage recovery.
 - Complete the exclusive cutover that prevents Paperless's native consumer racing this importer.
 
-Recommended next action: configure a disposable/staging Paperless account and run the documented synthetic end-to-end acceptance before any production cutover. Detailed status is maintained in [docs/work-queue.md](docs/work-queue.md).
+Recommended next action: diagnose and repair Paperless's document-storage I/O path, then rerun the synthetic terminal-success acceptance before any production cutover. Detailed status is maintained in [docs/work-queue.md](docs/work-queue.md).

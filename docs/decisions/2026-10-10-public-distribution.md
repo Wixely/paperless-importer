@@ -23,4 +23,4 @@ No software license is granted merely by making the source visible. Runtime Pape
 
 ## Validation
 
-The repository returned public visibility through GitHub's repository API on 2026-10-10. Anonymous GHCR pull remained unauthorized because GitHub package visibility is managed separately and still required the one-time package-settings change.
+The repository returned public visibility through GitHub's repository API on 2026-10-10. After the separate package visibility change, the deployment Docker host pulled release `v0.1.0` anonymously and Portainer started the published image successfully.
