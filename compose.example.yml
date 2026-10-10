@@ -4,7 +4,8 @@ services:
       context: .
     restart: unless-stopped
     # Startup exits non-zero before scanning unless the token has
-    # documents.add_document and documents.view_paperlesstask.
+    # documents.add_document, documents.view_paperlesstask, and
+    # documents.view_uisettings.
     environment:
       Paperless__BaseUrl: "${PAPERLESS_URL:?set PAPERLESS_URL}"
       Paperless__TokenFile: /run/secrets/paperless_token

@@ -29,7 +29,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | --- | --- | --- | --- |
 | Blocked | Publish the self-contained single-file NativeAOT executables | Implementation agent | Windows requires the missing Visual Studio C++ linker workload; Linux publish is intended to run in Docker; the workstation also reached zero free disk during a fallback publish on 2026-10-09 |
 | Blocked | Build and smoke-test the container | Implementation agent | Docker CLI/engine is not installed on this workstation as observed on 2026-10-09 |
-| Blocked | Supply a dedicated Paperless endpoint/token and trusted CA bundle | User + implementation agent | Development token acquired over trusted HTTPS, but the account lacks both `documents.add_document` and `documents.view_paperlesstask`; `/api/tasks/` returns 403 |
+| Blocked | Supply a dedicated Paperless endpoint/token and trusted CA bundle | User + implementation agent | Development token acquired over trusted HTTPS. Task access now returns 200, but effective permissions cannot be validated until the account has `documents.view_uisettings`; document-add permission remains unverified |
 | Not started | Validate the Paperless task-list contract and retention | User + implementation agent | Synthetic upload exposes filename, creation time, and terminal state long enough for reconciliation |
 | Not started | Observe representative printer writes | Implementation agent | Dated non-sensitive evidence describes open/write/rename behaviour and timestamp resolution |
 | Not started | Validate same-filesystem atomic rename and permissions on intended NFS mount | Implementation agent | Safe synthetic fixture moves successfully under deployment UID/GID |
@@ -57,7 +57,8 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-10, automated: `dotnet test PaperlessImporter.slnx --configuration Release` passed all 14 tests after adding configurable success dispositions and cross-mount terminal transfer.
 - 2026-10-10, development API: login-to-token exchange succeeded over trusted HTTPS and `/api/profile/` succeeded. The profile reports neither document-add nor PaperlessTask-view permission; a task-list request returned HTTP 403 without inspecting task data.
 - 2026-10-10, automated: `dotnet test PaperlessImporter.slnx --configuration Release` passed all 19 tests after adding the mandatory startup permission and task-endpoint preflight, including an effective-access HTTP 403 case.
+- 2026-10-10, development API: `/api/profile/` on Paperless-ngx 2.20.4 was verified not to expose permissions. `/api/ui_settings/` is the installed-version contract for effective permissions and itself requires `documents.view_uisettings`; the startup preflight was corrected accordingly.
 
 ## Recommended next action
 
-Grant the importer account `Document: Add` and `PaperlessTask: View`, then repeat the permission probe before deploying into a synthetic-only subdirectory. Do not change the native Paperless consumer without a separate explicit request.
+Grant the importer account `Document: Add`, `PaperlessTask: View`, and `UISettings: View`, then repeat the permission probe before deploying into a synthetic-only subdirectory. Do not change the native Paperless consumer without a separate explicit request.

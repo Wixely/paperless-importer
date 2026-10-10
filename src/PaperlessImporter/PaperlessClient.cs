@@ -13,13 +13,14 @@ public interface IPaperlessClient
 
 public sealed class PaperlessClient(HttpClient httpClient, IOptions<PaperlessOptions> options) : IPaperlessClient
 {
-    internal const string AddDocumentPermission = "documents.add_document";
-    internal const string ViewTaskPermission = "documents.view_paperlesstask";
+    internal const string AddDocumentPermission = "add_document";
+    internal const string ViewTaskPermission = "view_paperlesstask";
+    internal const string ViewUiSettingsPermission = "view_uisettings";
     private readonly PaperlessOptions _options = options.Value;
 
     public async Task VerifyStartupPrerequisitesAsync(CancellationToken cancellationToken)
     {
-        using (var request = CreateRequest(HttpMethod.Get, "api/profile/"))
+        using (var request = CreateRequest(HttpMethod.Get, "api/ui_settings/"))
         using (var response = await httpClient.SendAsync(
             request,
             HttpCompletionOption.ResponseHeadersRead,
@@ -27,7 +28,8 @@ public sealed class PaperlessClient(HttpClient httpClient, IOptions<PaperlessOpt
         {
             if (!response.IsSuccessStatusCode)
                 throw new PaperlessStartupException(
-                    $"The profile permission check failed with HTTP {(int)response.StatusCode}.");
+                    $"The effective permission check failed with HTTP {(int)response.StatusCode}. " +
+                    "Grant UISettings: View so Paperless can report this account's permissions.");
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
@@ -118,25 +120,27 @@ public sealed class PaperlessClient(HttpClient httpClient, IOptions<PaperlessOpt
         return tasks;
     }
 
-    internal static IReadOnlyList<string> FindMissingPermissions(JsonElement profile)
+    internal static IReadOnlyList<string> FindMissingPermissions(JsonElement settings)
     {
-        if (profile.ValueKind != JsonValueKind.Object)
-            throw new InvalidDataException("Paperless returned an invalid profile response.");
+        if (settings.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("Paperless returned an invalid UI settings response.");
 
-        if (profile.TryGetProperty("is_superuser", out var superuser) &&
+        if (settings.TryGetProperty("user", out var user) &&
+            user.ValueKind == JsonValueKind.Object &&
+            user.TryGetProperty("is_superuser", out var superuser) &&
             superuser.ValueKind == JsonValueKind.True)
             return [];
 
-        if (!profile.TryGetProperty("permissions", out var permissions) ||
+        if (!settings.TryGetProperty("permissions", out var permissions) ||
             permissions.ValueKind != JsonValueKind.Array)
-            throw new InvalidDataException("Paperless returned an invalid profile permission response.");
+            throw new InvalidDataException("Paperless returned an invalid effective permission response.");
 
         var granted = permissions
             .EnumerateArray()
             .Where(value => value.ValueKind == JsonValueKind.String)
             .Select(value => value.GetString()!)
             .ToHashSet(StringComparer.Ordinal);
-        return new[] { AddDocumentPermission, ViewTaskPermission }
+        return new[] { AddDocumentPermission, ViewTaskPermission, ViewUiSettingsPermission }
             .Where(permission => !granted.Contains(permission))
             .ToArray();
     }

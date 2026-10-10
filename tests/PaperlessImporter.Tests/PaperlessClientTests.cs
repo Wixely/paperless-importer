@@ -10,10 +10,11 @@ public sealed class PaperlessClientTests
         using var json = JsonDocument.Parse("""
             {
               "permissions": [
-                "documents.add_document",
-                "documents.view_paperlesstask"
+                "add_document",
+                "view_paperlesstask",
+                "view_uisettings"
               ],
-              "is_superuser": false
+              "user": {"is_superuser": false}
             }
             """);
 
@@ -24,13 +25,13 @@ public sealed class PaperlessClientTests
     public void ReportsEveryMissingStartupPermission()
     {
         using var json = JsonDocument.Parse("""
-            {"permissions": [], "is_superuser": false}
+            {"permissions": [], "user": {"is_superuser": false}}
             """);
 
         var missing = PaperlessClient.FindMissingPermissions(json.RootElement);
 
         Assert.Equal(
-            ["documents.add_document", "documents.view_paperlesstask"],
+            ["add_document", "view_paperlesstask", "view_uisettings"],
             missing);
     }
 
@@ -41,10 +42,11 @@ public sealed class PaperlessClientTests
             JsonResponse("""
                 {
                   "permissions": [
-                    "documents.add_document",
-                    "documents.view_paperlesstask"
+                    "add_document",
+                    "view_paperlesstask",
+                    "view_uisettings"
                   ],
-                  "is_superuser": false
+                  "user": {"is_superuser": false}
                 }
                 """),
             JsonResponse("{\"results\": []}"));
@@ -59,7 +61,7 @@ public sealed class PaperlessClientTests
 
         await client.VerifyStartupPrerequisitesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(["/api/profile/", "/api/tasks/?page_size=1"], handler.RequestTargets);
+        Assert.Equal(["/api/ui_settings/", "/api/tasks/?page_size=1"], handler.RequestTargets);
     }
 
     [Fact]
@@ -67,8 +69,8 @@ public sealed class PaperlessClientTests
     {
         var handler = new QueueHandler(JsonResponse("""
             {
-              "permissions": ["documents.add_document"],
-              "is_superuser": false
+              "permissions": ["add_document", "view_uisettings"],
+              "user": {"is_superuser": false}
             }
             """));
         using var http = new HttpClient(handler);
@@ -83,7 +85,7 @@ public sealed class PaperlessClientTests
         var exception = await Assert.ThrowsAsync<PaperlessStartupException>(() =>
             client.VerifyStartupPrerequisitesAsync(TestContext.Current.CancellationToken));
 
-        Assert.Contains("documents.view_paperlesstask", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("view_paperlesstask", exception.Message, StringComparison.Ordinal);
         Assert.Single(handler.RequestTargets);
     }
 
@@ -94,10 +96,11 @@ public sealed class PaperlessClientTests
             JsonResponse("""
                 {
                   "permissions": [
-                    "documents.add_document",
-                    "documents.view_paperlesstask"
+                    "add_document",
+                    "view_paperlesstask",
+                    "view_uisettings"
                   ],
-                  "is_superuser": false
+                  "user": {"is_superuser": false}
                 }
                 """),
             new HttpResponseMessage(System.Net.HttpStatusCode.Forbidden));

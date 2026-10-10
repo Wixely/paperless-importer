@@ -1,6 +1,6 @@
 # Mandatory startup permission gate
 
-- Status: Accepted
+- Status: Accepted; endpoint and permission-list details superseded by `2026-10-10-effective-permission-introspection.md`
 - Date: 2026-10-10
 - Source: User direction after development credential verification
 

@@ -39,16 +39,17 @@ There is no exactly-once guarantee without durable idempotency state. A duplicat
 
 ## Required Paperless permissions
 
-The account represented by the API token must have both of these global permissions:
+The account represented by the API token must have all three of these global permissions:
 
 | Paperless UI permission | Permission code | Why it is required |
 | --- | --- | --- |
 | **Document: Add** | `documents.add_document` | Submit documents through the supported upload API |
 | **PaperlessTask: View** | `documents.view_paperlesstask` | Check for prior uploads and wait for terminal task status |
+| **UISettings: View** | `documents.view_uisettings` | Read the current account's effective permission list during fail-closed startup validation |
 
 Use a dedicated regular account with only the permissions it needs; superuser access is unnecessary and discouraged.
 
-Every normal process start performs a mandatory preflight before any directory is scanned or file is claimed. It reads `/api/profile/`, verifies both permissions, and makes a one-item request to `/api/tasks/` to confirm the effective endpoint access. Missing permissions or a rejected profile/task request terminate the process with a non-zero exit code. An unavailable or invalid token also terminates startup. Docker therefore remains stopped or restarting instead of running an importer that cannot perform stateless reconciliation. Health-check command invocations do not repeat the remote preflight.
+Every normal process start performs a mandatory preflight before any directory is scanned or file is claimed. It reads `/api/ui_settings/`, verifies the three effective permissions above, and makes a one-item request to `/api/tasks/` to confirm task endpoint access. Missing permissions or a rejected settings/task request terminate the process with a non-zero exit code. An unavailable or invalid token also terminates startup. Docker therefore remains stopped or restarting instead of running an importer that cannot perform stateless reconciliation. Health-check command invocations do not repeat the remote preflight.
 
 ## Configuration
 
@@ -124,7 +125,7 @@ Automated checks through 2026-10-10 cover readiness stability, growth, disappear
 ## What remains
 
 - Obtain and mount a dedicated least-privilege Paperless token and trusted CA bundle if required; never retain the supplied login password in deployment configuration.
-- Grant and verify `documents.add_document` and `documents.view_paperlesstask` for the Paperless service account.
+- Grant and verify `documents.add_document`, `documents.view_paperlesstask`, and `documents.view_uisettings` for the Paperless service account.
 - Validate task retention, filename normalization, and queue visibility using synthetic PDF and image fixtures.
 - Validate atomic rename, open-file behaviour, outage recovery, and non-root permissions on each intended NFS mount.
 - Complete the exclusive cutover that prevents Paperless's native consumer racing this importer.
