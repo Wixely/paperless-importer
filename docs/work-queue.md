@@ -23,6 +23,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | Complete | Add interactive, Windows Service, systemd, and Docker packaging assets | Implementation agent | Assets present; build/runtime verification tracked below |
 | Complete | Add configuration and operator documentation | Implementation agent | README documents environment, mounted secret, CA, operation, health, and limitations |
 | Complete | Add GitHub CI and release automation | Implementation agent | CI tests and builds AMD64/ARM64 containers; semantic-version tags publish GHCR images with SBOM/provenance and generate GitHub releases |
+| In progress | Publish source and release image publicly | User + implementation agent | Repository visibility changed to public on 2026-10-10; GHCR package still needs its separate one-time public visibility change |
 
 ## Verification and acceptance
 

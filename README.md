@@ -4,8 +4,8 @@ Paperless Importer is a small .NET 10 worker that moves completed printer scans 
 
 - Status: MVP implemented; Paperless account permission gate accepted; awaiting synthetic environment acceptance
 - Last reviewed: 2026-10-10
-- Source host: private GitHub repository under the Wixely account
-- License: private/closed source
+- Source host: public GitHub repository under the Wixely account
+- License: no license has been granted; the source is publicly visible but remains all rights reserved
 
 ## Why this exists
 
@@ -104,6 +104,8 @@ The image is a non-root, self-contained, single-file NativeAOT Linux executable.
 ## Build and release automation
 
 GitHub Actions runs the Release test suite and a multi-architecture container build for every pull request and push to `main`. Tags matching `vMAJOR.MINOR.PATCH` run the tests again, publish immutable semantic-version tags plus `latest` to GHCR, attach SBOM and maximum-level provenance attestations, and create a GitHub release with generated notes. Dependabot checks NuGet packages and GitHub Actions weekly. Workflow tokens use explicit least-privilege permissions; deployment credentials and Paperless configuration are never supplied to builds.
+
+The release package is intended to be public so Portainer and other Docker hosts can pull it anonymously. GitHub creates new personal-account container packages as private, so the package owner must change the GHCR package visibility to public once. GitHub does not permit a public package to be made private again.
 
 On startup, check `docker compose ps` and the container log. A permission error names the missing permission code and exits with code 78; Paperless/token availability or response-contract failure exits with code 69. No input file is touched before this check succeeds.
 
