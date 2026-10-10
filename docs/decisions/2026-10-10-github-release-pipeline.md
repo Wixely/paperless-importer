@@ -17,7 +17,7 @@ GitHub Actions performs two separate workflows:
 - CI restores, builds, and tests the .NET solution, then builds the container for Linux AMD64 and ARM64 without publishing it.
 - Tags using semantic versioning publish versioned and `latest` multi-architecture images to GHCR, attach SBOM and maximum-level provenance attestations, and create a GitHub release only after tests and image publication succeed.
 
-The Dockerfile uses Microsoft's NativeAOT SDK and matching chiseled NativeAOT runtime-dependencies images. Builds contain no Paperless endpoint, token, CA material, NFS configuration, or document fixtures. Workflow permissions are declared per job, and Dependabot checks NuGet and GitHub Actions dependencies weekly.
+The Dockerfile uses Microsoft's NativeAOT SDK and its chiseled runtime-dependencies image for NativeAOT applications. Builds contain no Paperless endpoint, token, CA material, NFS configuration, or document fixtures. Workflow permissions are declared per job, and Dependabot checks NuGet and GitHub Actions dependencies weekly.
 
 ## Alternatives
 
