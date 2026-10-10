@@ -2,7 +2,7 @@
 
 Paperless Importer is a small .NET 10 worker that moves completed printer scans from an NFS-backed inbox into Paperless-ngx through its supported HTTP API.
 
-- Status: MVP implemented; awaiting required Paperless account permissions and synthetic environment acceptance
+- Status: MVP implemented; Paperless account permission gate accepted; awaiting synthetic environment acceptance
 - Last reviewed: 2026-10-10
 - Intended host: private local GitLab; no remote has been created
 - License: private/closed source
@@ -122,12 +122,11 @@ Liveness requires a recent worker heartbeat. Readiness additionally requires a r
 
 ## Current evidence
 
-Automated checks through 2026-10-10 cover deployment configuration binding, readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, startup permission enforcement and task-endpoint probing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 20 tests. A live Windows process accepted Docker-style environment configuration, exited with code 78 for the current account's missing introspection permission, and did not emit the configured endpoint. NativeAOT and container execution remain unverified on this workstation because the Windows C++ linker and Docker are not installed.
+Automated checks through 2026-10-10 cover deployment configuration binding, readiness stability, growth, disappearance/reappearance, deferral of an exclusively open file, isolation of an unavailable directory mapping, Paperless task response parsing, startup permission enforcement and task-endpoint probing, duplicate avoidance for a matching task, claim retention after upload, all three success dispositions, collision-safe output movement, and separate health semantics. The Release test run passed all 20 tests. A live development API probe confirmed HTTP 200 from UI settings and the task endpoint and confirmed all three required effective permissions without reading task data. NativeAOT and container execution remain unverified on this workstation because the Windows C++ linker and Docker are not installed.
 
 ## What remains
 
 - Obtain and mount a dedicated least-privilege Paperless token and trusted CA bundle if required; never retain the supplied login password in deployment configuration.
-- Grant and verify `documents.add_document`, `documents.view_paperlesstask`, and `documents.view_uisettings` for the Paperless service account.
 - Upgrade the deployed Paperless-ngx 2.20.4 instance to a version containing the 2.20.6 upload-authorization fix before production acceptance.
 - Validate task retention, filename normalization, and queue visibility using synthetic PDF and image fixtures.
 - Validate atomic rename, open-file behaviour, outage recovery, and non-root permissions on each intended NFS mount.

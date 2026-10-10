@@ -8,7 +8,7 @@
 
 The initial startup gate assumed `/api/profile/` returned the current account's global permission list. Live acceptance proved that Paperless-ngx 2.20.4's profile response contains account-profile fields but no permissions. Its `/api/ui_settings/` response contains the effective permissions used by the Paperless web client, with application prefixes removed, but access to that response requires `UISettings: View`.
 
-The development token can now read `/api/tasks/`, but `/api/ui_settings/` returns HTTP 403. Task access alone cannot prove document-add permission. Paperless-ngx versions before 2.20.6 also had an upload authorization gap, so probing the upload route without creating a document is not a trustworthy permission test for the installed 2.20.4 server.
+Before `UISettings: View` was granted, the development token could read `/api/tasks/` but `/api/ui_settings/` returned HTTP 403. Task access alone could not prove document-add permission. Paperless-ngx versions before 2.20.6 also had an upload authorization gap, so probing the upload route without creating a document was not a trustworthy permission test for the installed 2.20.4 server.
 
 ## Decision
 
@@ -25,10 +25,10 @@ It then probes `/api/tasks/?page_size=1`. No filesystem enumeration or claim beg
 - The service account needs one introspection permission beyond its document workflow permissions.
 - Startup is compatible with the verified Paperless-ngx 2.20.4 response shape instead of relying on a nonexistent profile field.
 - The three permission names must be kept visible in deployment documentation.
-- Deployment remains blocked until the development account can read UI settings and advertises every required permission.
+- A live acceptance probe must confirm both the advertised permissions and effective task endpoint access before filesystem testing.
 
 ## Validation
 
-Primary source for Paperless-ngx 2.20.4 was inspected on 2026-10-10: `ProfileSerializer` omits permissions; `UiSettingsView` returns `user.get_all_permissions()` with application prefixes removed and is guarded by model permissions. Live requests confirmed the profile shape, task HTTP 200, and UI-settings HTTP 403 for the current development token. Automated preflight tests cover the verified UI-settings response shape and effective task-access rejection.
+Primary source for Paperless-ngx 2.20.4 was inspected on 2026-10-10: `ProfileSerializer` omits permissions; `UiSettingsView` returns `user.get_all_permissions()` with application prefixes removed and is guarded by model permissions. Initial live requests confirmed the profile shape, task HTTP 200, and UI-settings HTTP 403 before the introspection permission was granted. After the permission change, a second live probe received HTTP 200 from both UI settings and the one-item task request, and the effective list contained `add_document`, `view_paperlesstask`, and `view_uisettings`. No task data was inspected or retained. Automated preflight tests cover the verified UI-settings response shape and effective task-access rejection.
 
 The first live executable preflight also exposed that `init`-only option properties were not populated by the application's source-generated configuration binder. Deployment-bound properties now use public setters. The configured locations array starts empty so the binder does not prepend an unintended default mapping; deployment defaults live in `appsettings.json`. An application-host test covers Paperless and importer command-line binding. Default `System.Net.Http.HttpClient` informational logging is suppressed because its failure events include the configured endpoint; importer-owned errors remain redacted. A subsequent live process accepted Docker-style environment configuration, exited 78 at the expected permission boundary, and emitted no endpoint URL.
