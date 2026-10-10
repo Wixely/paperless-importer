@@ -1,5 +1,5 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0.300-noble-aot AS build
-ARG TARGETARCH=amd64
+ARG TARGETARCH
 ARG VERSION=0.0.0-dev
 WORKDIR /src
 COPY NuGet.config Directory.Build.props Directory.Packages.props global.json PaperlessImporter.slnx ./
