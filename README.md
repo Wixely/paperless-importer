@@ -132,6 +132,8 @@ Automated checks through 2026-10-10 cover deployment configuration binding, read
 
 The released image is deployed as a Portainer stack without a custom Docker network. One-shot startup gates verified non-root create/write permissions, the same-filesystem atomic claim rename, archive/quarantine writes, and the pinned private CA before the worker started. The importer then passed its live permission and task API preflight and reported healthy. A synthetic PDF was claimed and accepted by Paperless, proving the mounted inbox, HTTPS API, token, and task reconciliation path. Paperless subsequently reported `FAILURE` with a server-side input/output error while storing the parsed document; the importer observed that terminal state and transferred the source to quarantine as designed. A successful `SUCCESS`-then-archive acceptance therefore remains blocked by Paperless storage rather than the importer.
 
+On 2026-10-11 the deployed input was changed from its isolated staging subdirectory to the mounted consume root at the user's direction. The importer claimed and submitted the existing backlog and remained healthy. Paperless's native consumer has not yet been formally disabled, so exclusive ownership and rollback remain production-cutover requirements.
+
 ## What remains
 
 - Upgrade the deployed Paperless-ngx 2.20.4 instance to a version containing the 2.20.6 upload-authorization fix before production acceptance.

@@ -44,7 +44,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | State | Task | Owner | Exit evidence |
 | --- | --- | --- | --- |
 | Complete | Choose archive retention for the test deployment | User | `Move` to the separately mounted importer archive; other mappings may select `Delete` or `Retain` |
-| Not started | Define exclusive directory ownership and Paperless native-consumer cutover/rollback | User + implementation agent | Deployment layout prevents competing consumers |
+| In progress | Define exclusive directory ownership and Paperless native-consumer cutover/rollback | User + implementation agent | Importer now watches the consume root; confirm or disable the native consumer and document rollback before production acceptance |
 | Not started | Confirm timing, backlog, and alert thresholds | User | Values recorded as acceptance criteria |
 
 ## Evidence log
@@ -71,6 +71,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-10, distribution: the repository and GHCR package were public, and the deployment Docker host pulled `v0.1.0` anonymously.
 - 2026-10-10, Portainer/NFS: the managed stack started without a custom network. Its fail-closed gate passed non-root create/write, atomic claim rename, archive write/rename, and quarantine write checks on the intended NFS-backed mounts. The pinned CA gate passed and the importer became healthy.
 - 2026-10-10, synthetic acceptance: a generated non-sensitive PDF was claimed and accepted through the Paperless API. The matching task remained visible and reached terminal `FAILURE` because Paperless reported an input/output error while storing the parsed document. The importer detected the failure and moved the source to quarantine; no document contents, private endpoint, token, CA material, or infrastructure path were recorded.
+- 2026-10-11, Portainer cutover: the configured importer input changed from the isolated staging subdirectory to the mounted consume root at the user's direction. Startup filesystem and CA gates passed, the worker remained healthy, and 18 existing documents were claimed and accepted by the Paperless API. Paperless task processing remained the terminal bottleneck; native-consumer exclusivity is not yet confirmed.
 
 ## Recommended next action
 
