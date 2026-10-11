@@ -44,7 +44,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 | State | Task | Owner | Exit evidence |
 | --- | --- | --- | --- |
 | Complete | Choose archive retention for the test deployment | User | `Move` to the separately mounted importer archive; other mappings may select `Delete` or `Retain` |
-| In progress | Define exclusive directory ownership and Paperless native-consumer cutover/rollback | User + implementation agent | Importer now watches the consume root; confirm or disable the native consumer and document rollback before production acceptance |
+| Complete | Define exclusive directory ownership and Paperless native-consumer cutover/rollback | User + implementation agent | Importer watches the consume root and Paperless's native directory consumer is disabled through `PAPERLESS_CONSUMER_DISABLE`; rollback removes that setting and restores the prior polling setting |
 | Not started | Confirm timing, backlog, and alert thresholds | User | Values recorded as acceptance criteria |
 
 ## Evidence log
@@ -72,6 +72,7 @@ Task states are `Not started`, `In progress`, `Blocked`, or `Complete`. Acceptan
 - 2026-10-10, Portainer/NFS: the managed stack started without a custom network. Its fail-closed gate passed non-root create/write, atomic claim rename, archive write/rename, and quarantine write checks on the intended NFS-backed mounts. The pinned CA gate passed and the importer became healthy.
 - 2026-10-10, synthetic acceptance: a generated non-sensitive PDF was claimed and accepted through the Paperless API. The matching task remained visible and reached terminal `FAILURE` because Paperless reported an input/output error while storing the parsed document. The importer detected the failure and moved the source to quarantine; no document contents, private endpoint, token, CA material, or infrastructure path were recorded.
 - 2026-10-11, Portainer cutover: the configured importer input changed from the isolated staging subdirectory to the mounted consume root at the user's direction. Startup filesystem and CA gates passed, the worker remained healthy, and 18 existing documents were claimed and accepted by the Paperless API. Paperless task processing remained the terminal bottleneck; native-consumer exclusivity is not yet confirmed.
+- 2026-10-11, Paperless cutover: the Portainer-managed Paperless stack replaced its native-consumer polling setting with `PAPERLESS_CONSUMER_DISABLE: "true"`. Paperless returned healthy after redeployment, its task API returned HTTP 200, and Paperless Importer recovered from the brief restart outage and resumed API submission. Existing database and OAuth secrets were preserved without being read into repository content.
 
 ## Recommended next action
 
