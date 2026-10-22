@@ -134,6 +134,8 @@ The released image is deployed as a Portainer stack without a custom Docker netw
 
 On 2026-10-11 the deployed input was changed from its isolated staging subdirectory to the mounted consume root at the user's direction. The importer claimed and submitted the existing backlog and remained healthy. Paperless's native directory consumer was then disabled through its supported Docker setting, leaving Paperless Importer as the exclusive filesystem consumer while Paperless continues to process API submissions.
 
+On 2026-10-22 a controlled, single-attempt retry reconfirmed the Paperless-side failure. The prior task was first verified as terminal `FAILURE` with no related document; the preserved source was then queued once under a unique filename. Paperless again returned terminal `FAILURE` with the same storage input/output error, and the importer safely quarantined the retry. The original remained preserved and no automatic requeue was performed.
+
 ## What remains
 
 - Upgrade the deployed Paperless-ngx 2.20.4 instance to a version containing the 2.20.6 upload-authorization fix before production acceptance.
